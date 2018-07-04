@@ -34,7 +34,7 @@ https://drive.google.com/open?id=1nXcmco9zrJIkOTQTTa4V3_VbTVajExWI
 
 2. Another problem that I encountered is the order of batch normalization and relu. If I use the order conv-relu-batchNormalization, the accuracy would be 63%. Keeping everything else same and only changing the order to be conv-batchNormalization-relu, the accuracy would increase to 71.56%.
 
-
+------------------------------------
 
 [1] Very Deep Convolutional Networks for Large-Scale Image Recognition
 
