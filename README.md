@@ -1,5 +1,5 @@
 # vggNet
-Implementation of vgg on Tensorflow according to the original paper. 
+Implementation of vgg on Tensorflow according to the original paper [1]. 
 
 Batch normalization is added to speed up the training.
 
@@ -9,9 +9,27 @@ Dataset is CIFAR100. Top-1 accuracy is 71.56%. TOp-5 accuracy is 91.52%.
 
 
 ## Usage:
-Assuming the code is put in directory ".", please download the following three files and save it in the directory "./vggNet". Then you can run the code 
+### Dataset
+Download dataset from the following link. "train" and "test" are the CIFAR100 training dataset and testing dataset respectively. Same as the dataset published at [2].
+
+https://drive.google.com/open?id=1m9Z4TXLoG0FHg4PuBms1yF1TnvmaO7Ov
+https://drive.google.com/open?id=1y4pjIpnPUvf1gBn8TdT0sob23npSveDC
+
+
+### Train vgg16 by yourself
+Put the code in the same directory with data and run "python3 vggRestore.py".
+
+### Use pretrained model 
+Assuming the code is put in directory ".", please download the following three files and save it in the directory "./vggNet". Then you can run the model by "python3 vggRestore.py".
+
 https://drive.google.com/open?id=1fDZDf7UpsVCn4CGGvI-Jssm3iFQgpyJw
 
 https://drive.google.com/open?id=1ZJm8-6HIDOLBWXBt92MQjUKqWRbq_xpz
 
 https://drive.google.com/open?id=1nXcmco9zrJIkOTQTTa4V3_VbTVajExWI
+
+[1] Very Deep Convolutional Networks for Large-Scale Image Recognition
+[2] https://www.cs.toronto.edu/~kriz/cifar.html
+
+## Notes on training experience
+I saw 
