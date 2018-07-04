@@ -13,6 +13,7 @@ Dataset is CIFAR100. Top-1 accuracy is 71.56%. TOp-5 accuracy is 91.52%.
 Download dataset from the following link. "train" and "test" are the CIFAR100 training dataset and testing dataset respectively. Same as the dataset published at [2].
 
 https://drive.google.com/open?id=1m9Z4TXLoG0FHg4PuBms1yF1TnvmaO7Ov
+
 https://drive.google.com/open?id=1y4pjIpnPUvf1gBn8TdT0sob23npSveDC
 
 
