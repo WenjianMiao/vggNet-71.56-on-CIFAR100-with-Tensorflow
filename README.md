@@ -28,8 +28,13 @@ https://drive.google.com/open?id=1ZJm8-6HIDOLBWXBt92MQjUKqWRbq_xpz
 
 https://drive.google.com/open?id=1nXcmco9zrJIkOTQTTa4V3_VbTVajExWI
 
-[1] Very Deep Convolutional Networks for Large-Scale Image Recognition
-[2] https://www.cs.toronto.edu/~kriz/cifar.html
-
 ## Notes on training experience
-I saw 
+1. The original paper [1] reported that VGG16 is hard to train. When I first write my code to implement VGG16, this is also observed by myself. The authors used pretrained small models to initialize a larger one. This way needs too much extra human work. Instead of that, I added two components to solve this problem: batch normalization & xavier initialization. After I added the two components mentioned above, the training process can proceed smoothly.
+
+2. Another problem that I encountered is the order of batch normalization and relu. If I use the order conv-relu-batchNormalization, the accuracy would be 63%. Keeping everything else same and only changing the order to be conv-batchNormalization-relu, the accuracy would increase to 71.56%.
+
+
+
+[1] Very Deep Convolutional Networks for Large-Scale Image Recognition
+
+[2] https://www.cs.toronto.edu/~kriz/cifar.html
