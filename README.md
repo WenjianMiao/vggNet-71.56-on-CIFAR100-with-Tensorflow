@@ -3,7 +3,7 @@ Implementation of vgg on Tensorflow according to the original paper [1].
 
 Batch normalization is added to speed up the training. [3]
 
-Dataset is CIFAR100. Top-1 accuracy is 71.56%. TOp-5 accuracy is 91.52%.
+Dataset is CIFAR100. Top-1 accuracy is 71.56%. Top-5 accuracy is 91.52%.
 
 
 
