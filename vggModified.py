@@ -322,17 +322,17 @@ def run_model(data, label_count, depth):
       if epoch == 100: learning_rate /= 10
       for batch_idx in range(batch_count):
         xs_, ys_ = batches_data[batch_idx], batches_labels[batch_idx]
-        batch_res = session.run([ train_step, total_loss, accuracy ],
+        batch_res = session.run([ train_step_m, total_loss_m, accuracy_m ],
           feed_dict = { xs: xs_, ys: ys_, lr: learning_rate, is_training: True, keep_prob: 0.8 })
         if batch_idx % 100 == 0: print (epoch, batch_idx, batch_res[1], batch_res[2])
       
       # save the model parameters
       if epoch == 150 or epoch == 225:
-        saver.save(session, 'vggNet/augmentation.ckpt', global_step = epoch)
+        saver.save(session, 'vggNetModify/augmentation.ckpt', global_step = epoch)
       elif epoch % 10 == 0:
-        saver.save(session, 'vggNet/augmentation.ckpt', global_step = epoch)
+        saver.save(session, 'vggNetModify/augmentation.ckpt', global_step = epoch)
       if epoch % 25 == 0:
-        test_results = run_in_batch_avg(session, [ total_loss, accuracy, top_5 ], [ xs, ys ],
+        test_results = run_in_batch_avg(session, [ total_loss_m, accuracy_m, top_5_m ], [ xs, ys ],
           feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
         print("Test results:")
         print(test_results[0], test_results[1], test_results[2])
