@@ -37,18 +37,25 @@ def load_data(files, data_dir, label_count):
   labels = np.array([ [ float(i == label) for i in range(label_count) ] for label in labels ])
   return data, labels
 
-def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_size=200):                              
-  res = [ 0 ] * len(tensors)                                                                                           
-  batch_tensors = [ (placeholder, feed_dict[ placeholder ]) for placeholder in batch_placeholders ]                    
-  total_size = len(batch_tensors[0][1])                                                                                
-  batch_count = (total_size + batch_size - 1) // batch_size                                                             
-  for batch_idx in range(batch_count):                                                                                
-    current_batch_size = None                                                                                          
-    for (placeholder, tensor) in batch_tensors:                                                                        
-      batch_tensor = tensor[ batch_idx*batch_size : (batch_idx+1)*batch_size ]                                         
-      current_batch_size = len(batch_tensor)                                                                           
-      feed_dict[placeholder] = tensor[ batch_idx*batch_size : (batch_idx+1)*batch_size ]                               
-    tmp = session.run(tensors, feed_dict=feed_dict)                                                                    
+def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_size=200):
+  res = [ 0 ] * len(tensors)
+  batch_tensors = [ (placeholder, feed_dict[ placeholder ]) for placeholder in batch_placeholders ]
+  total_size = len(batch_tensors[0][1])
+  batch_count = (total_size + batch_size - 1) // batch_size
+  for batch_idx in range(batch_count):
+    current_batch_size = None
+    for (placeholder, tensor) in batch_tensors:
+      batch_tensor = tensor[ batch_idx*batch_size : (batch_idx+1)*batch_size ]
+      current_batch_size = len(batch_tensor)
+      feed_dict[placeholder] = tensor[ batch_idx*batch_size : (batch_idx+1)*batch_size ]
+
+    tmp = session.run(tensors, feed_dict=feed_dict)
+
+    f, modify, ys, logits, value, index = session.run(tensors, feed_dict=feed_dict)
+
+    #label = batch_tensors[1][1][ batch_idx*batch_size : (batch_idx+1)*batch_size ]
+
+
     #YS_ = tmp[2]
     #YS = tmp[3]
     #NEW_LOGITS = tmp[4]
@@ -62,7 +69,7 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
     #  print(YS[i])
     #  print(NEW_LOGITS[i])
     #print(tmp)
-    res = [ r + t * current_batch_size for (r, t) in zip(res, tmp) ]                                                   
+    res = [ r + t * current_batch_size for (r, t) in zip(res, tmp) ]
   return [ r / float(total_size) for r in res ]
 
 def weight_variable_msra(shape, name):
@@ -217,6 +224,8 @@ def run_model(data, label_count, depth):
     with tf.variable_scope("Conv9", reuse = tf.AUTO_REUSE):
       current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
 
+    f = current
+
     # add auxiliary structure
     with tf.variable_scope("Conv10", reuse = tf.AUTO_REUSE):
       current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
@@ -228,6 +237,9 @@ def run_model(data, label_count, depth):
       Wfc_m = weight_variable_xavier([ 4096, label_count ], name = 'W')
       bfc_m = bias_variable([ label_count ])
       ys_m = tf.matmul(modify, Wfc_m) + bfc_m
+
+    logits_m = tf.nn.softmax(ys_m)
+    top5_result_m, indices_m = tf.nn.top_k(logits_m, 5);
 
     var_list = [var for var in tf.trainable_variables('FC17')] + [var for var in tf.trainable_variables('FC18')]
     cross_entropy_m = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = ys, logits = ys_m))
@@ -271,7 +283,7 @@ def run_model(data, label_count, depth):
   config.gpu_options.allow_growth = True
   with tf.Session(graph=graph, config = config) as session:
     total_parameters = 0
-    for variable in tf.trainable_variables():
+    for variable in var_list:
       shape = variable.get_shape()
       variable_parametes = 1
       for dim in shape:
@@ -292,6 +304,11 @@ def run_model(data, label_count, depth):
     saver = tf.train.Saver(max_to_keep = None, var_list = saver_list)
 
     saver.restore(session, "vggNet/augmentation.ckpt-120")
+
+    saver2 = tf.train.Saver(max_to_keep = None, var_list = var_list)
+
+    saver2.restore(session, "vggNetModify/augmentation.ckpt-120")
+
     print("restored successfully!")
 
     '''
@@ -306,6 +323,7 @@ def run_model(data, label_count, depth):
     tf.saved_model.simple_save(session, './Model', inputs, outputs)
     '''
 
+    '''
     for epoch in range(1, 125+1):
       # data preprocessing for training dataset
       # ops contain shuffling, data augmentation
@@ -325,19 +343,27 @@ def run_model(data, label_count, depth):
         batch_res = session.run([ train_step_m, total_loss_m, accuracy_m ],
           feed_dict = { xs: xs_, ys: ys_, lr: learning_rate, is_training: True, keep_prob: 0.8 })
         if batch_idx % 100 == 0: print (epoch, batch_idx, batch_res[1], batch_res[2])
-      
+
       # save the model parameters
       if epoch == 150 or epoch == 225:
-        saver.save(session, 'vggNetModify/augmentation.ckpt', global_step = epoch)
+        saver2.save(session, 'vggNetModify/augmentation.ckpt', global_step = epoch)
       elif epoch % 10 == 0:
-        saver.save(session, 'vggNetModify/augmentation.ckpt', global_step = epoch)
+        saver2.save(session, 'vggNetModify/augmentation.ckpt', global_step = epoch)
       if epoch % 25 == 0:
         test_results = run_in_batch_avg(session, [ total_loss_m, accuracy_m, top_5_m ], [ xs, ys ],
           feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
         print("Test results:")
         print(test_results[0], test_results[1], test_results[2])
-    
-    test_results = run_in_batch_avg(session, [ total_loss, accuracy, top_5 ], [ xs, ys ],
+    '''
+
+    '''
+    test_results = run_in_batch_avg(session, [ total_loss_m, accuracy_m, top_5_m ], [ xs, ys ],
+          feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
+    print("Test results:")
+    print(test_results[0], test_results[1], test_results[2])
+    '''
+
+    test_results = run_in_batch_avg(session, [ f, modify, ys_m, logits_m, top5_result_m, indices_m ], [ xs, ys ],
           feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
     print(test_results[0], test_results[1], test_results[2])
 
