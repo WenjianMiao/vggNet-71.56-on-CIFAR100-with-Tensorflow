@@ -51,7 +51,7 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
 
     tmp = session.run(tensors, feed_dict=feed_dict)
 
-    f, modify, ys, logits, value, index = session.run(tensors, feed_dict=feed_dict)
+    #top5, ys, logits, value, index = session.run(tensors, feed_dict=feed_dict)
 
     #label = batch_tensors[1][1][ batch_idx*batch_size : (batch_idx+1)*batch_size ]
 
@@ -224,15 +224,14 @@ def run_model(data, label_count, depth):
     with tf.variable_scope("Conv9", reuse = tf.AUTO_REUSE):
       current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
 
-    f = current
-
     # add auxiliary structure
     with tf.variable_scope("Conv10", reuse = tf.AUTO_REUSE):
       current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
       current = maxpool2d(current, k=2)
-      modify = tf.reshape(current, [ -1, 512*4])
+      modify = maxpool2d(current, k=2)
+      modify = tf.reshape(modify, [ -1, 512])
     with tf.variable_scope("FC17", reuse = tf.AUTO_REUSE):
-      modify = batch_activ_fc(modify, 512*4, 4096, is_training)
+      modify = batch_activ_fc(modify, 512, 4096, is_training)
     with tf.variable_scope("FC18", reuse = tf.AUTO_REUSE):
       Wfc_m = weight_variable_xavier([ 4096, label_count ], name = 'W')
       bfc_m = bias_variable([ label_count ])
@@ -297,15 +296,16 @@ def run_model(data, label_count, depth):
     train_data_normalization = normalize_images(data['train_data'])
     test_data_normalization = normalize_images(data['test_data'])
 
+    saver2_list = [var for var in tf.global_variables('FC17')] + [var for var in tf.global_variables('FC18')]
 
-    saver_list = [var for var in tf.trainable_variables() if var not in var_list]
+    saver_list = [var for var in tf.global_variables() if var not in saver2_list]
 
     batch_count = len(train_data_normalization) // batch_size
     saver = tf.train.Saver(max_to_keep = None, var_list = saver_list)
 
     saver.restore(session, "vggNet/augmentation.ckpt-120")
 
-    saver2 = tf.train.Saver(max_to_keep = None, var_list = var_list)
+    saver2 = tf.train.Saver(max_to_keep = None, var_list = saver2_list)
 
     saver2.restore(session, "vggNetModify/augmentation.ckpt-120")
 
@@ -356,17 +356,17 @@ def run_model(data, label_count, depth):
         print(test_results[0], test_results[1], test_results[2])
     '''
 
-    '''
+
     test_results = run_in_batch_avg(session, [ total_loss_m, accuracy_m, top_5_m ], [ xs, ys ],
           feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
     print("Test results:")
     print(test_results[0], test_results[1], test_results[2])
+
+
     '''
-
-    test_results = run_in_batch_avg(session, [ f, modify, ys_m, logits_m, top5_result_m, indices_m ], [ xs, ys ],
+    test_results = run_in_batch_avg(session, [ top5_m, ys_m, logits_m, top5_result_m, indices_m ], [ xs, ys ],
           feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
-    print(test_results[0], test_results[1], test_results[2])
-
+    '''
 
 def run():
   label_count = 100
