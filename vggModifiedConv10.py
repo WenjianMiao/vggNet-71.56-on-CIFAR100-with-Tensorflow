@@ -4,6 +4,10 @@ import random
 import keras
 from sklearn.utils import shuffle
 from decimal import *
+import time
+
+# use gpu device or not
+USE_GPU = 0
 
 getcontext().prec = 7
 
@@ -37,11 +41,15 @@ def load_data(files, data_dir, label_count):
   labels = np.array([ [ float(i == label) for i in range(label_count) ] for label in labels ])
   return data, labels
 
-def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_size=200):
+def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_size=1):
   res = [ 0 ] * len(tensors)
   batch_tensors = [ (placeholder, feed_dict[ placeholder ]) for placeholder in batch_placeholders ]
   total_size = len(batch_tensors[0][1])
   batch_count = (total_size + batch_size - 1) // batch_size
+
+  total_accuracy = 0
+  total_stop = 0
+  total_time = 0
   for batch_idx in range(batch_count):
     current_batch_size = None
     for (placeholder, tensor) in batch_tensors:
@@ -49,7 +57,32 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
       current_batch_size = len(batch_tensor)
       feed_dict[placeholder] = tensor[ batch_idx*batch_size : (batch_idx+1)*batch_size ]
 
-    tmp = session.run(tensors, feed_dict=feed_dict)
+    #tmp = session.run(tensors, feed_dict=feed_dict)
+
+    start = time.time()
+    h = session.partial_run_setup(tensors, [*feed_dict])
+    mid = session.partial_run(h, tensors[0], feed_dict=feed_dict)
+    value, index = session.partial_run(h, tensors[1:3])
+
+    result = np.sum(value,1)
+    result = result > 0.7
+    if(result[0]):
+      total_time += time.time() - start
+      top_5 = session.partial_run(h, tensors[3])
+      total_stop += 1
+    else:
+      top_5 = session.partial_run(h, tensors[4])
+      total_time += time.time() - start
+    #top_5 = session.run(tensors[4], feed_dict=feed_dict)
+    #total_time += time.time() - start
+
+    total_accuracy += top_5
+
+  total_accuracy /= total_size
+  total_stop /= total_size
+  print("accuracy and stop prob:")
+  print(total_accuracy, total_stop, total_time)
+
 
     #top5, ys, logits, value, index = session.run(tensors, feed_dict=feed_dict)
 
@@ -69,8 +102,10 @@ def run_in_batch_avg(session, tensors, batch_placeholders, feed_dict={}, batch_s
     #  print(YS[i])
     #  print(NEW_LOGITS[i])
     #print(tmp)
-    res = [ r + t * current_batch_size for (r, t) in zip(res, tmp) ]
+
+    #res = [ r + t * current_batch_size for (r, t) in zip(res, tmp) ]
   return [ r / float(total_size) for r in res ]
+
 
 def weight_variable_msra(shape, name):
   return tf.get_variable(name = name, shape = shape, initializer = tf.contrib.layers.variance_scaling_initializer())
@@ -227,8 +262,8 @@ def run_model(data, label_count, depth):
     # add auxiliary structure
     with tf.variable_scope("Conv10", reuse = tf.AUTO_REUSE):
       current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
-      current = maxpool2d(current, k=2)
-      modify = maxpool2d(current, k=2)
+      mid = maxpool2d(current, k=2)
+      modify = maxpool2d(mid, k=2)
       modify = tf.reshape(modify, [ -1, 512])
     with tf.variable_scope("FC17", reuse = tf.AUTO_REUSE):
       modify = batch_activ_fc(modify, 512, 4096, is_training)
@@ -252,7 +287,7 @@ def run_model(data, label_count, depth):
 
 
     with tf.variable_scope("Conv11", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      current = batch_activ_conv(mid, 512, 512, 3, is_training, keep_prob)
     with tf.variable_scope("Conv12", reuse = tf.AUTO_REUSE):
       current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
     with tf.variable_scope("Conv13", reuse = tf.AUTO_REUSE):
@@ -278,7 +313,9 @@ def run_model(data, label_count, depth):
     top_5 = tf.reduce_mean(tf.cast(top5, 'float'))
 
 
-  config = tf.ConfigProto()
+  config = tf.ConfigProto(
+    device_count = {'GPU': USE_GPU}
+  )
   config.gpu_options.allow_growth = True
   with tf.Session(graph=graph, config = config) as session:
     total_parameters = 0
@@ -307,7 +344,7 @@ def run_model(data, label_count, depth):
 
     saver2 = tf.train.Saver(max_to_keep = None, var_list = saver2_list)
 
-    saver2.restore(session, "vggNetModify/augmentation.ckpt-120")
+    saver2.restore(session, "vggNetModifyConv10/augmentation.ckpt-120")
 
     print("restored successfully!")
 
@@ -356,12 +393,14 @@ def run_model(data, label_count, depth):
         print(test_results[0], test_results[1], test_results[2])
     '''
 
-
+    test_results = run_in_batch_avg(session, [ mid, top5_result_m, indices_m, top_5_m, top_5 ], [ xs, ys],
+                                    feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
+    '''
     test_results = run_in_batch_avg(session, [ total_loss_m, accuracy_m, top_5_m ], [ xs, ys ],
           feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
     print("Test results:")
     print(test_results[0], test_results[1], test_results[2])
-
+    '''
 
     '''
     test_results = run_in_batch_avg(session, [ top5_m, ys_m, logits_m, top5_result_m, indices_m ], [ xs, ys ],
