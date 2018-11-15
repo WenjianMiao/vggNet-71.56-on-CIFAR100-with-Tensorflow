@@ -125,10 +125,11 @@ def conv2d(input, in_features, out_features, kernel_size, with_bias=False):
     return conv + bias_variable([ out_features ])
   return conv
 
-def batch_activ_conv(current, in_features, out_features, kernel_size, is_training, keep_prob):
+#def batch_activ_conv(current, in_features, out_features, kernel_size, is_training, keep_prob):
+def batch_activ_conv(current, in_features, out_features, kernel_size):
   with tf.variable_scope("composite_function", reuse = tf.AUTO_REUSE):
     current = conv2d(current, in_features, out_features, kernel_size)
-    current = tf.contrib.layers.batch_norm(current, scale=True, is_training=is_training, updates_collections=None)
+    current = tf.contrib.layers.batch_norm(current, scale=True, is_training=False, updates_collections=None)
     current = tf.nn.relu(current)
     #current = tf.nn.dropout(current, keep_prob)
   return current
@@ -219,11 +220,12 @@ def maxpool2d(x, k=2):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                           padding='VALID')
 
-def batch_activ_fc(current, in_features, out_features, is_training):
+#def batch_activ_fc(current, in_features, out_features, is_training):
+def batch_activ_fc(current, in_features, out_features):
   Wfc = weight_variable_xavier([ in_features, out_features ], name = 'W')
   bfc = bias_variable([ out_features ])
   current = tf.matmul(current, Wfc) + bfc
-  current = tf.contrib.layers.batch_norm(current, scale=True, is_training=is_training, updates_collections=None)
+  current = tf.contrib.layers.batch_norm(current, scale=True, is_training=False, updates_collections=None)
   current = tf.nn.relu(current)
   return current
 
@@ -234,26 +236,33 @@ def run_model(data, label_count, depth):
   with graph.as_default():
     xs = tf.placeholder("float", shape=[None, 32, 32, 3])
     ys = tf.placeholder("float", shape=[None, label_count])
-    lr = tf.placeholder("float", shape=[])
-    keep_prob = tf.placeholder(tf.float32)
-    is_training = tf.placeholder("bool", shape=[])
+    #lr = tf.placeholder("float", shape=[])
+    #keep_prob = tf.placeholder(tf.float32)
+    #is_training = tf.placeholder("bool", shape=[])
 
     with tf.variable_scope("Conv1", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(xs, 3, 64, 3, is_training, keep_prob)
+      #current = batch_activ_conv(xs, 3, 64, 3, is_training, keep_prob)
+      current = batch_activ_conv(xs, 3, 64, 3)
     with tf.variable_scope("Conv2", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 64, 64, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 64, 64, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 64, 64, 3)
       current = maxpool2d(current, k=2)
     with tf.variable_scope("Conv3", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 64, 128, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 64, 128, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 64, 128, 3)
     with tf.variable_scope("Conv4", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 128, 128, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 128, 128, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 128, 128, 3)
       current = maxpool2d(current, k=2)
     with tf.variable_scope("Conv5", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 128, 256, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 128, 256, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 128, 256, 3)
     with tf.variable_scope("Conv6", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 256, 256, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 256, 256, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 256, 256, 3)
     with tf.variable_scope("Conv7", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 256, 256, 1, is_training, keep_prob)
+      #current = batch_activ_conv(current, 256, 256, 1, is_training, keep_prob)
+      current = batch_activ_conv(current, 256, 256, 1)
       mid = maxpool2d(current, k=2)
 
     # add auxiliary structure
@@ -261,7 +270,8 @@ def run_model(data, label_count, depth):
       modify = maxpool2d(modify, k=2)
       modify = tf.reshape(modify, [ -1, 256])
     with tf.variable_scope("FC17", reuse = tf.AUTO_REUSE):
-      modify = batch_activ_fc(modify, 256, 4096, is_training)
+      #modify = batch_activ_fc(modify, 256, 4096, is_training)
+      modify = batch_activ_fc(modify, 256, 4096)
     with tf.variable_scope("FC18", reuse = tf.AUTO_REUSE):
       Wfc_m = weight_variable_xavier([ 4096, label_count ], name = 'W')
       bfc_m = bias_variable([ label_count ])
@@ -274,7 +284,7 @@ def run_model(data, label_count, depth):
     cross_entropy_m = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = ys, logits = ys_m))
     l2_loss_m = tf.add_n([tf.nn.l2_loss(var) for var in var_list])
     total_loss_m = l2_loss_m * weight_decay + cross_entropy_m
-    train_step_m = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss = total_loss_m, var_list = var_list)
+    #train_step_m = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss = total_loss_m, var_list = var_list)
     correct_prediction_m = tf.equal(tf.argmax(ys_m, 1), tf.argmax(ys, 1))
     accuracy_m = tf.reduce_mean(tf.cast(correct_prediction_m, "float"))
     top5_m = tf.nn.in_top_k(predictions=ys_m, targets=tf.argmax(ys,1), k=5)
@@ -282,33 +292,44 @@ def run_model(data, label_count, depth):
 
 
     with tf.variable_scope("Conv8", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(mid, 256, 512, 3, is_training, keep_prob)
+      #current = batch_activ_conv(mid, 256, 512, 3, is_training, keep_prob)
+      current = batch_activ_conv(mid, 256, 512, 3)
     with tf.variable_scope("Conv9", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 512, 512, 3)
     with tf.variable_scope("Conv10", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
+      #current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
+      current = batch_activ_conv(current, 512, 512, 1)
       current = maxpool2d(current, k=2)
     with tf.variable_scope("Conv11", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 512, 512, 3)
     with tf.variable_scope("Conv12", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      #current = batch_activ_conv(current, 512, 512, 3, is_training, keep_prob)
+      current = batch_activ_conv(current, 512, 512, 3)
     with tf.variable_scope("Conv13", reuse = tf.AUTO_REUSE):
-      current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
+      #current = batch_activ_conv(current, 512, 512, 1, is_training, keep_prob)
+      current = batch_activ_conv(current, 512, 512, 1)
       current = maxpool2d(current, k=2)
       current = tf.reshape(current, [ -1, 512 ])
     with tf.variable_scope("FC14", reuse = tf.AUTO_REUSE):
-      current = batch_activ_fc(current, 512, 4096, is_training)
+      #current = batch_activ_fc(current, 512, 4096, is_training)
+      current = batch_activ_fc(current, 512, 4096)
     with tf.variable_scope("FC15", reuse = tf.AUTO_REUSE):
-      current = batch_activ_fc(current, 4096, 4096, is_training)
+      #current = batch_activ_fc(current, 4096, 4096, is_training)
+      current = batch_activ_fc(current, 4096, 4096)
     with tf.variable_scope("FC16", reuse = tf.AUTO_REUSE):
       Wfc = weight_variable_xavier([ 4096, label_count ], name = 'W')
       bfc = bias_variable([ label_count ])
       ys_ = tf.matmul(current, Wfc) + bfc
 
+    logits = tf.nn.softmax(ys_)
+    top5_result, indices = tf.nn.top_k(logits, 5)
+
     cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = ys, logits = ys_))
     l2_loss = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
     total_loss = l2_loss * weight_decay + cross_entropy
-    train_step = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(total_loss)
+    #train_step = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(total_loss)
     correct_prediction = tf.equal(tf.argmax(ys_, 1), tf.argmax(ys, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
     top5 = tf.nn.in_top_k(predictions=ys_, targets=tf.argmax(ys, 1), k=5)
@@ -348,9 +369,11 @@ def run_model(data, label_count, depth):
 
     saver2.restore(session, "vggNetModifyConv7/augmentation.ckpt-120")
 
-    converter = tf.contrib.lite.TocoConverter.from_session(session, [xs, keep_prob, ys], [accuracy])
+
+    converter = tf.contrib.lite.TFLiteConverter.from_session(session, [xs], [logits])
     tflite_model = converter.convert()
-    open("converted_model.tflite", "wb").write(tflite_model);
+    open("converted_model1.tflite", "wb").write(tflite_model);
+
     '''
     tf.saved_model.simple_save(session, "./SavedModelConv7",
                                {"image": xs, "label": ys, "learning_rate": lr, "prob": keep_prob, "training": is_training},
@@ -411,7 +434,7 @@ def run_model(data, label_count, depth):
     '''
 
     test_results = run_in_batch_avg(session, [ mid, top5_result_m, indices_m, top_5_m, top_5 ], [ xs, ys],
-                                    feed_dict = { xs: test_data_normalization, ys: data['test_labels'], is_training: False, keep_prob: 1. })
+                                    feed_dict = { xs: test_data_normalization, ys: data['test_labels'] })
 
     '''
     test_results = run_in_batch_avg(session, [ top5_m, ys_m, logits_m, top5_result_m, indices_m ], [ xs, ys ],
@@ -430,5 +453,9 @@ def run():
       'test_data': test_data,
       'test_labels': test_labels }
   run_model(data, label_count, 40)
+
+
+
+def run_tflite():
 
 run()
